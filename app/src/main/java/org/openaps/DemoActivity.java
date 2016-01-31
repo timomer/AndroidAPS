@@ -3,6 +3,7 @@ package org.openaps;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -30,16 +31,14 @@ public class DemoActivity extends AppCompatActivity {
             public void onClick(View view) {
                 try {
                     DetermineBasalAdapterJS dbJS = new DetermineBasalAdapterJS(new ScriptReader(getApplicationContext()));
-
-                    DatermineBasalResult text = dbJS.invoke();
-                    Snackbar.make(view, "Result " + text.reason, Snackbar.LENGTH_LONG)
-                                            .setAction("Action", null).show();
-
                     dbJS.setGlucoseStatus(120, 0, 0);
 
-                    text = dbJS.invoke();
+                    DatermineBasalResult text = dbJS.invoke();
+                    Snackbar.make(view, "Result   " + text.reason, Snackbar.LENGTH_LONG)
+                                            .setAction("Action", null).show();
 
                     result.setText(text.reason);
+                    dbJS.release();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -47,6 +46,7 @@ public class DemoActivity extends AppCompatActivity {
 
             }
         });
+
     }
 
     @Override

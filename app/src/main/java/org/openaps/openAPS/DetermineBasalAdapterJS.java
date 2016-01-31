@@ -48,11 +48,19 @@ public class DetermineBasalAdapterJS {
     public DatermineBasalResult invoke() {
 
         mV8rt.executeVoidScript(
-                "var rT = determinebasal.determine_basal(" +
+                "console.error(\"determine_basal(\"+\n" +
+                        "JSON.stringify("+PARAM_glucoseStatus+")+ \", \" +\n" +
+                        "JSON.stringify("+PARAM_currentTemp+")+ \", \" + \n" +
+                        "JSON.stringify("+PARAM_iobData+")+ \", \" +\n" +
+                        "JSON.stringify("+PARAM_profile+")+ \") \");");
+        mV8rt.executeVoidScript(
+                "var rT = determine_basal(" +
                         PARAM_glucoseStatus + ", " +
                         PARAM_currentTemp+", " +
                         PARAM_iobData +", " +
-                        PARAM_profile +
+                        PARAM_profile + ", " +
+                        "undefined, "+
+                        "setTempBasal"+
                         ");");
 
 
@@ -60,10 +68,10 @@ public class DetermineBasalAdapterJS {
         log.debug(mV8rt.executeStringScript("JSON.stringify(rT);"));
 
         V8Object v8ObjectReuslt = mV8rt.getObject("rT");
-        {
-            V8Object result = v8ObjectReuslt;
-            log.debug(Arrays.toString(result.getKeys()));
-        }
+//        {
+//            V8Object result = v8ObjectReuslt;
+//            log.debug(Arrays.toString(result.getKeys()));
+//        }
 
         DatermineBasalResult result = new DatermineBasalResult(v8ObjectReuslt);
 
@@ -72,8 +80,21 @@ public class DetermineBasalAdapterJS {
     }
 
     private void loadScript() throws IOException {
-        mV8rt.executeVoidScript(readFile("oref0/bin/oref0-determine-basal.js"), "oref0/bin/oref0-determine-basal.js", 1);
-        mV8rt.executeVoidScript("var determinebasal = init();");
+        mV8rt.executeVoidScript(
+                readFile("oref0/lib/determine-basal/determine-basal.js"),
+                "oref0/bin/oref0-determine-basal.js", 
+                0);
+        mV8rt.executeVoidScript("var determine_basal = module.exports;");
+        
+        mV8rt.executeVoidScript(
+        		"var setTempBasal = function (rate, duration, profile, rT, offline) {" +
+                    "rT.duration = duration;\n" +
+                "    rT.rate = rate;" +
+                    "return rT;" +
+                "};",
+        		"setTempBasal.js",
+        		0
+        		);
     }
 
     private void initModuleParent() {
@@ -140,7 +161,7 @@ public class DetermineBasalAdapterJS {
     private void initGlucoseStatus() {
         mGlucoseStatus = new V8Object(mV8rt);
 
-        setGlucoseStatus(100.0, 10.0, 10.0);
+        setGlucoseStatus(0.0, 0.0, 0.0);
 
         mV8rt.add(PARAM_glucoseStatus, mGlucoseStatus);
     }
@@ -161,12 +182,16 @@ public class DetermineBasalAdapterJS {
         mProfile.add("type", "current");
         setProfile_CurrentBasal(1.6);
         mProfile.add("max_daily_basal", 1.1);
-        mProfile.add("max_basal", 2);
+        setProfile_MaxBasal(2.0);
         mProfile.add("max_bg", 125);
         mProfile.add("min_bg", 106);
         mProfile.add("carbratio", 10);
-        mProfile.add("sens", 10);
+        setProfile_Sens(27);
         mV8rt.add(PARAM_profile, mProfile);
+    }
+
+    public void setProfile_Sens(int sensitivityInMGDL) {
+        mProfile.add("sens", sensitivityInMGDL);
     }
 
     public void setProfile_CurrentBasal(double currentBasal) {
@@ -177,11 +202,12 @@ public class DetermineBasalAdapterJS {
     protected void finalize() throws Throwable {
         super.finalize();
         try {
-            mV8rt.release();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     public String readFile(String filename) throws IOException {
         byte[] bytes = mScriptReader.readFile(filename);
@@ -192,4 +218,19 @@ public class DetermineBasalAdapterJS {
         return string;
     }
 
+    public void setProfile_MaxBasal(double max_basal) {
+        mProfile.add("max_basal", max_basal);
+    }
+
+    public void release() {
+        try {
+            mProfile.release();
+            mCurrentTemp.release();
+            mIobData.release();
+            mGlucoseStatus.release();
+            mV8rt.release();
+        } catch (Exception e) {
+            log.error("release()",e);
+        }
+    }
 }
